@@ -21,20 +21,20 @@ SELECT *
 FROM layoffs;
 
 
-WITH duplicate_cte AS 
-(
-SELECT *,
-ROW_NUMBER() OVER( 
-PARTITION BY company, location, 
-industry, total_laid_off,
-percentage_laid_off, 'date',
-stage, country, funds_raised_millions) as row_num
-FROM layoffs_staging
+WITH DELETE_CTE AS (
+    SELECT *,
+    ROW_NUMBER() OVER( 
+    PARTITION BY company, location, 
+    industry, total_laid_off,
+    percentage_laid_off, `date`,
+    stage, country, funds_raised_millions) as row_num
+    FROM layoffs_staging2
 )
-SELECT * 
-FROM duplicate_cte
-WHERE row_num > 1 ;
-
+DELETE FROM layoffs_staging2
+WHERE (company, location, industry, total_laid_off, percentage_laid_off, `date`, stage, country, funds_raised_millions, row_num) IN (
+    SELECT company, location, industry, total_laid_off, percentage_laid_off, `date`, stage, country, funds_raised_millions, row_num
+    FROM DELETE_CTE
+) AND row_num > 1;
 
 CREATE TABLE `layoffs_staging2` (
   `company` text,
@@ -59,15 +59,11 @@ SELECT *,
 ROW_NUMBER() OVER( 
 PARTITION BY company, location, 
 industry, total_laid_off,
-percentage_laid_off, 'date',
+percentage_laid_off, date,
 stage, country, funds_raised_millions) as row_num
 FROM layoffs_staging;
 
 
-
-DELETE  
-FROM layoffs_staging2
-WHERE row_num > 1;
 
 
 SELECT * 
@@ -140,20 +136,11 @@ AND t2.industry IS NOT NULL;
 
 UPDATE layoffs_staging2 t1
 JOIN  layoffs_staging2 t2
-	ON t1.industry = t2.industry
+    ON t1.company = t2.company
+    AND t1.location = t2.location
 SET t1.industry = t2.industry
 WHERE t1.industry IS NULL
 AND t2.industry IS NOT NULL;
-
-DELETE
-FROM layoffs_staging2
-WHERE industry IS NULL
-OR industry = '';
-
-DELETE
-FROM layoffs_staging2
-WHERE total_laid_off IS NULL
-AND percentage_laid_off IS NULL;
 
 SELECT industry
 FROM layoffs_staging2
